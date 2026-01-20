@@ -22,13 +22,14 @@ namespace JobsVssManager
             var config = JsonSerializer.Deserialize<Config>(
                 File.ReadAllText("appsettings.json"), options);
 
-            IVssProvider provider = config?.VssMode switch
-            {
-                "NativeVss" => new NativeVssProvider(),
-                "AlphaVss" => new AlphaVssProvider(),
-                _ => new VssAdminProvider()
-            };
+            //IVssProvider provider = config?.VssMode switch
+            //{
+            //    "NativeVss" => new NativeVssProvider(),
+            //    "AlphaVss" => new AlphaVssProvider(),
+            //    "VssAdmin" => new VssAdminProvider()
+            //};
 
+            IVssProvider provider = new VssAdminProvider();
             var vm = new MainViewModel(
                 provider, 
                 config?.JobsRoot ?? "C:\\job", 

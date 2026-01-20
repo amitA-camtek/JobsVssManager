@@ -1,13 +1,14 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using JobsVssManager.Models;
 
 namespace JobsVssManager.Services
 {
     public interface IVssProvider
     {
-        SnapshotModel CreateSnapshot(string volume, string description);
-        IEnumerable<SnapshotModel> ListSnapshots(string volume);
-        void DeleteSnapshot(string snapshotId);
-        string GetSnapshotPath(string snapshotId, string volume);
+        Task<SnapshotModel> CreateSnapshotAsync(string volume, string description);
+        Task<IEnumerable<SnapshotModel>> ListSnapshotsAsync(string volume);
+        Task DeleteSnapshotAsync(string snapshotId);
+        Task<string> GetSnapshotPathAsync(string snapshotId, string volume);
     }
 }
