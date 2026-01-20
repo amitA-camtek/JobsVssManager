@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Management;
 using System.Security.Principal;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using JobsVssManager.Models;
@@ -13,6 +15,10 @@ namespace JobsVssManager.Services
     public class VssAdminProvider : IVssProvider
     {
         private readonly Dictionary<string, string> _snapshotDevices = new();
+        private readonly string _metadataFile = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "JobsVssManager",
+            "snapshots.json");
 
         public VssAdminProvider()
         {
@@ -22,6 +28,13 @@ namespace JobsVssManager.Services
                 throw new UnauthorizedAccessException(
                     "This application requires Administrator privileges to use VSS.\n" +
                     "Please restart Visual Studio or the application as Administrator.");
+            }
+            
+            // Ensure metadata directory exists
+            var metadataDir = Path.GetDirectoryName(_metadataFile);
+            if (!string.IsNullOrEmpty(metadataDir))
+            {
+                Directory.CreateDirectory(metadataDir);
             }
         }
 
@@ -117,13 +130,18 @@ namespace JobsVssManager.Services
                     }
                 }
                 
-                return new SnapshotModel
+                var snapshot = new SnapshotModel
                 {
                     Id = shadowId,
                     Volume = volume,
                     CreatedAt = creationTime,
                     Description = description
                 };
+                
+                // Save description to metadata file
+                SaveSnapshotMetadata(shadowId, description);
+                
+                return snapshot;
             });
         }
 
@@ -133,64 +151,70 @@ namespace JobsVssManager.Services
             {
                 try
                 {
-                    var output = RunAsync("list shadows").Result;
-                    
-                    // Check if no snapshots exist
-                    if (string.IsNullOrWhiteSpace(output) || 
-                        output.Contains("No items found") ||
-                        !output.Contains("Shadow Copy ID"))
-                    {
-                        return Array.Empty<SnapshotModel>();
-                    }
+                    // Ensure volume format is correct (e.g., "C:\")
+                    if (!volume.EndsWith("\\"))
+                        volume += "\\";
 
                     var snapshots = new List<SnapshotModel>();
+                    var metadata = LoadSnapshotMetadata();
 
-                    // Parse output for each shadow copy
-                    var shadowBlocks = Regex.Split(output, @"(?=Shadow Copy ID:)");
-                    
-                    foreach (var block in shadowBlocks)
+                    // Use WMI to query shadow copies
+                    using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_ShadowCopy");
+                    using var results = searcher.Get();
+
+                    foreach (ManagementObject obj in results)
                     {
-                        var idMatch = Regex.Match(block, @"Shadow Copy ID:\s*(\{[^\}]+\})");
-                        var volumeMatch = Regex.Match(block, @"Original Volume:\s*([^\r\n]+)");
-                        var timeMatch = Regex.Match(block, @"Creation Time:\s*([^\r\n]+)");
-                        var deviceMatch = Regex.Match(block, @"Shadow Copy Volume:\s*([^\r\n]+)");
+                        var shadowId = obj["ID"]?.ToString();
+                        var origVolume = obj["VolumeName"]?.ToString();
+                        var devicePath = obj["DeviceObject"]?.ToString();
+                        var installDate = obj["InstallDate"]?.ToString();
 
-                        //if (idMatch.Success && volumeMatch.Success)
+                        if (string.IsNullOrEmpty(shadowId))
+                            continue;
+
+                        // Parse creation time from WMI format
+                        DateTime creationTime = DateTime.Now;
+                        if (!string.IsNullOrEmpty(installDate))
                         {
-                            var origVolume = volumeMatch.Groups[1].Value.Trim();
-                            //if (origVolume.StartsWith(volume, StringComparison.OrdinalIgnoreCase))
+                            try
                             {
-                                var id = idMatch.Groups[1].Value;
-                                
-                                if (deviceMatch.Success)
-                                {
-                                    lock (_snapshotDevices)
-                                    {
-                                        _snapshotDevices[id] = deviceMatch.Groups[1].Value.Trim();
-                                    }
-                                }
-
-                                snapshots.Add(new SnapshotModel
-                                {
-                                    Id = id,
-                                    Volume = origVolume,
-                                    CreatedAt = timeMatch.Success ? DateTime.Parse(timeMatch.Groups[1].Value) : DateTime.Now,
-                                    Description = "CamTek VSS Snapshot"
-                                });
+                                creationTime = ManagementDateTimeConverter.ToDateTime(installDate);
+                            }
+                            catch
+                            {
+                                // Use current time if parsing fails
                             }
                         }
+
+                        // Cache device path
+                        if (!string.IsNullOrEmpty(devicePath))
+                        {
+                            lock (_snapshotDevices)
+                            {
+                                _snapshotDevices[shadowId] = devicePath;
+                            }
+                        }
+
+                        // Get description from metadata, or use default
+                        var description = metadata.TryGetValue(shadowId, out var desc) 
+                            ? desc 
+                            : "CamTek VSS Snapshot";
+
+                        snapshots.Add(new SnapshotModel
+                        {
+                            Id = shadowId,
+                            Volume = origVolume ?? "",
+                            CreatedAt = creationTime,
+                            Description = description
+                        });
                     }
 
                     return (IEnumerable<SnapshotModel>)snapshots;
                 }
                 catch (Exception ex)
                 {
-                    // Return empty list if listing fails (e.g., no snapshots exist)
-                    if (ex.Message.Contains("No items found") || ex.Message.Contains("No shadow copies"))
-                    {
-                        return Array.Empty<SnapshotModel>();
-                    }
-                    throw;
+                    Debug.WriteLine($"Failed to list snapshots: {ex.Message}");
+                    return Array.Empty<SnapshotModel>();
                 }
             });
         }
@@ -201,6 +225,61 @@ namespace JobsVssManager.Services
             lock (_snapshotDevices)
             {
                 _snapshotDevices.Remove(snapshotId);
+            }
+            
+            // Remove metadata
+            RemoveSnapshotMetadata(snapshotId);
+        }
+
+        private void SaveSnapshotMetadata(string snapshotId, string description)
+        {
+            try
+            {
+                var metadata = LoadSnapshotMetadata();
+                metadata[snapshotId] = description;
+                
+                var json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(_metadataFile, json);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to save snapshot metadata: {ex.Message}");
+            }
+        }
+
+        private Dictionary<string, string> LoadSnapshotMetadata()
+        {
+            try
+            {
+                if (File.Exists(_metadataFile))
+                {
+                    var json = File.ReadAllText(_metadataFile);
+                    return JsonSerializer.Deserialize<Dictionary<string, string>>(json) 
+                           ?? new Dictionary<string, string>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to load snapshot metadata: {ex.Message}");
+            }
+            
+            return new Dictionary<string, string>();
+        }
+
+        private void RemoveSnapshotMetadata(string snapshotId)
+        {
+            try
+            {
+                var metadata = LoadSnapshotMetadata();
+                if (metadata.Remove(snapshotId))
+                {
+                    var json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true });
+                    File.WriteAllText(_metadataFile, json);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to remove snapshot metadata: {ex.Message}");
             }
         }
 

@@ -18,6 +18,7 @@ namespace JobsVssManager.ViewModels
         private readonly VssSnapshotService _snapshotService;
         private readonly JobsWatcherService _jobsWatcher;
         private JobViewModel? _selectedJob;
+        private SnapshotModel? _selectedSnapshot;
         private bool _isBusy;
         private string _statusMessage = "";
 
@@ -30,6 +31,16 @@ namespace JobsVssManager.ViewModels
             set
             {
                 _selectedJob = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public SnapshotModel? SelectedSnapshot
+        {
+            get => _selectedSnapshot;
+            set
+            {
+                _selectedSnapshot = value;
                 OnPropertyChanged();
             }
         }
@@ -59,7 +70,7 @@ namespace JobsVssManager.ViewModels
 
         public ICommand CreateSnapshotCommand { get; }
         public ICommand DeleteSnapshotCommand { get; }
-        public ICommand UndoCommand { get; }
+        public ICommand RestoreCommand { get; }
         public ICommand RedoCommand { get; }
 
         public MainViewModel(IVssProvider vssProvider, string jobsRoot, string volume)
@@ -77,7 +88,7 @@ namespace JobsVssManager.ViewModels
 
             CreateSnapshotCommand = new RelayCommand(async _ => await CreateSnapshotAsync(), _ => !IsBusy);
             DeleteSnapshotCommand = new RelayCommand(async _ => await DeleteSnapshotAsync(), _ => Snapshots.Count > 0 && !IsBusy);
-            UndoCommand = new RelayCommand(async _ => await UndoAsync(), _ => SelectedJob != null && Snapshots.Count > 0 && !IsBusy);
+            RestoreCommand = new RelayCommand(async _ => await RestoreAsync(), _ => SelectedJob != null && SelectedSnapshot != null && !IsBusy);
             RedoCommand = new RelayCommand(async _ => await RedoAsync(), _ => SelectedJob != null && Snapshots.Count > 0 && !IsBusy);
         }
 
@@ -243,19 +254,18 @@ namespace JobsVssManager.ViewModels
             }
         }
 
-        private async Task UndoAsync()
+        private async Task RestoreAsync()
         {
-            if (SelectedJob == null || Snapshots.Count == 0)
+            if (SelectedJob == null || SelectedSnapshot == null)
                 return;
 
             var stopwatch = Stopwatch.StartNew();
             try
             {
                 IsBusy = true;
-                var snapshot = Snapshots.First();
-                StatusMessage = $"Restoring from snapshot: {snapshot.Description}...";
+                StatusMessage = $"Restoring from snapshot: {SelectedSnapshot.Description}...";
 
-                await _snapshotService.RestoreFolderAsync(snapshot.Id, SelectedJob.Path);
+                await _snapshotService.RestoreFolderAsync(SelectedSnapshot.Id, SelectedJob.Path);
 
                 stopwatch.Stop();
                 var duration = FormatDuration(stopwatch.Elapsed);
@@ -263,7 +273,7 @@ namespace JobsVssManager.ViewModels
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show(
-                        $"Restored from snapshot:\n{snapshot.Description}\n\nDuration: {duration}",
+                        $"Restored from snapshot:\n{SelectedSnapshot.Description}\n\nDuration: {duration}",
                         "Success",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);

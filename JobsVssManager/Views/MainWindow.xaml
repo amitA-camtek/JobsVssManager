@@ -17,7 +17,7 @@
             <Button Content="Delete Snapshots" Command="{Binding DeleteSnapshotCommand}" 
                     IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>
             <Separator/>
-            <Button Content="Undo" Command="{Binding UndoCommand}" 
+            <Button Content="Restore" Command="{Binding RestoreCommand}" 
                     IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>
             <Button Content="Redo" Command="{Binding RedoCommand}" 
                     IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>
@@ -45,6 +45,7 @@
             <!-- Snapshots List -->
             <GroupBox Grid.Column="2" Header="Snapshots" Margin="5">
                 <ListBox ItemsSource="{Binding Snapshots}" 
+                         SelectedItem="{Binding SelectedSnapshot}"
                          IsEnabled="{Binding IsNotBusy}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
