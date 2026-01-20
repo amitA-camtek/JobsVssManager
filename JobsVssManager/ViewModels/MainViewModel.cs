@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -82,13 +83,17 @@ namespace JobsVssManager.ViewModels
 
         private async Task LoadSnapshotsAsync()
         {
+            var stopwatch = Stopwatch.StartNew();
             try
             {
                 IsBusy = true;
                 StatusMessage = "Loading snapshots...";
-                
+
                 var snapshots = await _snapshotService.ListSnapshotsAsync();
-                
+
+                stopwatch.Stop();
+                var duration = FormatDuration(stopwatch.Elapsed);
+
                 // Marshal back to UI thread
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
@@ -98,11 +103,12 @@ namespace JobsVssManager.ViewModels
                         Snapshots.Add(snapshot);
                     }
                 });
-                
-                StatusMessage = $"Loaded {Snapshots.Count} snapshot(s)";
+
+                StatusMessage = $"Loaded {Snapshots.Count} snapshot(s) ({duration})";
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show($"Failed to load snapshots:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -130,24 +136,33 @@ namespace JobsVssManager.ViewModels
 
         private async Task CreateSnapshotAsync()
         {
+            var stopwatch = Stopwatch.StartNew();
             try
             {
                 IsBusy = true;
                 StatusMessage = "Creating snapshot...";
-                
+
                 var snap = await _snapshotService.CreateSnapshotAsync($"Snapshot {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                
+
+                stopwatch.Stop();
+                var duration = FormatDuration(stopwatch.Elapsed);
+
                 // Marshal back to UI thread
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     Snapshots.Insert(0, snap);
-                    MessageBox.Show($"Snapshot created successfully!\nID: {snap.Id}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(
+                        $"Snapshot created successfully!\n\nID: {snap.Id}\nDuration: {duration}",
+                        "Success",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
                 });
-                
-                StatusMessage = "Snapshot created successfully";
+
+                StatusMessage = $"Snapshot created successfully ({duration})";
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show($"Failed to create snapshot:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -167,21 +182,22 @@ namespace JobsVssManager.ViewModels
 
             var result = await Application.Current.Dispatcher.InvokeAsync(() =>
                 MessageBox.Show(
-                    $"Are you sure you want to delete all {Snapshots.Count} snapshot(s)?", 
-                    "Confirm Delete", 
-                    MessageBoxButton.YesNo, 
+                    $"Are you sure you want to delete all {Snapshots.Count} snapshot(s)?",
+                    "Confirm Delete",
+                    MessageBoxButton.YesNo,
                     MessageBoxImage.Warning));
 
             if (result == MessageBoxResult.No)
                 return;
 
+            var stopwatch = Stopwatch.StartNew();
             try
             {
                 IsBusy = true;
                 StatusMessage = $"Deleting {Snapshots.Count} snapshot(s)...";
 
                 var snapshotsToDelete = Snapshots.ToList();
-                
+
                 foreach (var snapshot in snapshotsToDelete)
                 {
                     try
@@ -197,16 +213,24 @@ namespace JobsVssManager.ViewModels
                     }
                 }
 
+                stopwatch.Stop();
+                var duration = FormatDuration(stopwatch.Elapsed);
+
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     Snapshots.Clear();
-                    MessageBox.Show("All snapshots deleted successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(
+                        $"All snapshots deleted successfully.\n\nDuration: {duration}",
+                        "Success",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
                 });
 
-                StatusMessage = "Snapshots deleted successfully";
+                StatusMessage = $"Snapshots deleted successfully ({duration})";
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show($"Failed to delete snapshots:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -224,23 +248,32 @@ namespace JobsVssManager.ViewModels
             if (SelectedJob == null || Snapshots.Count == 0)
                 return;
 
+            var stopwatch = Stopwatch.StartNew();
             try
             {
                 IsBusy = true;
                 var snapshot = Snapshots.First();
                 StatusMessage = $"Restoring from snapshot: {snapshot.Description}...";
-                
+
                 await _snapshotService.RestoreFolderAsync(snapshot.Id, SelectedJob.Path);
-                
+
+                stopwatch.Stop();
+                var duration = FormatDuration(stopwatch.Elapsed);
+
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    MessageBox.Show($"Restored from snapshot:\n{snapshot.Description}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(
+                        $"Restored from snapshot:\n{snapshot.Description}\n\nDuration: {duration}",
+                        "Success",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
                 });
-                
-                StatusMessage = "Restore completed successfully";
+
+                StatusMessage = $"Restore completed successfully ({duration})";
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show($"Failed to restore:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -263,6 +296,16 @@ namespace JobsVssManager.ViewModels
                     MessageBox.Show("Redo functionality not yet implemented.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
                 });
             });
+        }
+
+        private string FormatDuration(TimeSpan duration)
+        {
+            if (duration.TotalMinutes >= 1)
+                return $"{duration.Minutes}m {duration.Seconds}s";
+            else if (duration.TotalSeconds >= 1)
+                return $"{duration.Seconds}.{duration.Milliseconds:D3}s";
+            else
+                return $"{duration.Milliseconds}ms";
         }
     }
 }

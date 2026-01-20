@@ -155,10 +155,10 @@ namespace JobsVssManager.Services
                         var timeMatch = Regex.Match(block, @"Creation Time:\s*([^\r\n]+)");
                         var deviceMatch = Regex.Match(block, @"Shadow Copy Volume:\s*([^\r\n]+)");
 
-                        if (idMatch.Success && volumeMatch.Success)
+                        //if (idMatch.Success && volumeMatch.Success)
                         {
                             var origVolume = volumeMatch.Groups[1].Value.Trim();
-                            if (origVolume.StartsWith(volume, StringComparison.OrdinalIgnoreCase))
+                            //if (origVolume.StartsWith(volume, StringComparison.OrdinalIgnoreCase))
                             {
                                 var id = idMatch.Groups[1].Value;
                                 
@@ -175,7 +175,7 @@ namespace JobsVssManager.Services
                                     Id = id,
                                     Volume = origVolume,
                                     CreatedAt = timeMatch.Success ? DateTime.Parse(timeMatch.Groups[1].Value) : DateTime.Now,
-                                    Description = "VSS Snapshot"
+                                    Description = "CamTek VSS Snapshot"
                                 });
                             }
                         }
