@@ -1,0 +1,42 @@
+﻿<Window x:Class="JobsVssManager.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Jobs VSS Manager" Height="450" Width="800">
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="3*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Grid.ColumnSpan="2" Margin="0,0,0,10">
+            <Button Content="Create Snapshot" Command="{Binding CreateSnapshotCommand}" Margin="0,0,10,0"/>
+            <Button Content="Undo" Command="{Binding UndoCommand}" Margin="0,0,10,0"/>
+            <Button Content="Redo" Command="{Binding RedoCommand}"/>
+        </StackPanel>
+
+        <GroupBox Header="Jobs" Grid.Row="1" Grid.Column="0" Margin="0,0,10,0">
+            <ListBox ItemsSource="{Binding Jobs}"
+                     SelectedItem="{Binding SelectedJob}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </GroupBox>
+
+        <GroupBox Header="Snapshots" Grid.Row="1" Grid.Column="1">
+            <DataGrid ItemsSource="{Binding Snapshots}" AutoGenerateColumns="False" IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="*"/>
+                    <DataGridTextColumn Header="Time" Binding="{Binding CreatedAt}" Width="*"/>
+                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="2*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </GroupBox>
+    </Grid>
+</Window>

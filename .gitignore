@@ -1,1 +1,67 @@
-*.dll
+
+## Build artifacts
+bin/
+obj/
+out/
+[Bb]uild/
+[Ll]og/
+
+## Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## .NET Core
+*.db
+*.db-shm
+*.db-wal
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+
+## Rider / JetBrains IDE
+.idea/
+*.DotSettings.user
+
+## Cache / logs
+*.log
+*.tlog
+*.cache
+*.config
+*.tmp
+
+## Coverage tools
+coverage/
+*.coverage
+*.coveragexml
+
+## Azure
+*.publishsettings
+*.azurePubxml
+PublishProfiles/
+
+## OS-specific crap
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+## Misc
+*.bak
+*.swp
+*.orig
