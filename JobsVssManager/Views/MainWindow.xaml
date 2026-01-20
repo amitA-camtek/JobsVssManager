@@ -14,6 +14,8 @@
         <ToolBar Grid.Row="0" Padding="5">
             <Button Content="Create Snapshot" Command="{Binding CreateSnapshotCommand}" 
                     IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>
+            <Button Content="Delete Snapshots" Command="{Binding DeleteSnapshotCommand}" 
+                    IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>
             <Separator/>
             <Button Content="Undo" Command="{Binding UndoCommand}" 
                     IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>

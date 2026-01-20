@@ -57,6 +57,7 @@ namespace JobsVssManager.ViewModels
         }
 
         public ICommand CreateSnapshotCommand { get; }
+        public ICommand DeleteSnapshotCommand { get; }
         public ICommand UndoCommand { get; }
         public ICommand RedoCommand { get; }
 
@@ -74,6 +75,7 @@ namespace JobsVssManager.ViewModels
             _ = LoadSnapshotsAsync();
 
             CreateSnapshotCommand = new RelayCommand(async _ => await CreateSnapshotAsync(), _ => !IsBusy);
+            DeleteSnapshotCommand = new RelayCommand(async _ => await DeleteSnapshotAsync(), _ => Snapshots.Count > 0 && !IsBusy);
             UndoCommand = new RelayCommand(async _ => await UndoAsync(), _ => SelectedJob != null && Snapshots.Count > 0 && !IsBusy);
             RedoCommand = new RelayCommand(async _ => await RedoAsync(), _ => SelectedJob != null && Snapshots.Count > 0 && !IsBusy);
         }
@@ -151,6 +153,65 @@ namespace JobsVssManager.ViewModels
                     MessageBox.Show($"Failed to create snapshot:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 });
                 StatusMessage = "Failed to create snapshot";
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task DeleteSnapshotAsync()
+        {
+            if (Snapshots.Count == 0)
+                return;
+
+            var result = await Application.Current.Dispatcher.InvokeAsync(() =>
+                MessageBox.Show(
+                    $"Are you sure you want to delete all {Snapshots.Count} snapshot(s)?", 
+                    "Confirm Delete", 
+                    MessageBoxButton.YesNo, 
+                    MessageBoxImage.Warning));
+
+            if (result == MessageBoxResult.No)
+                return;
+
+            try
+            {
+                IsBusy = true;
+                StatusMessage = $"Deleting {Snapshots.Count} snapshot(s)...";
+
+                var snapshotsToDelete = Snapshots.ToList();
+                
+                foreach (var snapshot in snapshotsToDelete)
+                {
+                    try
+                    {
+                        await _snapshotService.DeleteSnapshotAsync(snapshot.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            MessageBox.Show($"Failed to delete snapshot {snapshot.Id}:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        });
+                    }
+                }
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    Snapshots.Clear();
+                    MessageBox.Show("All snapshots deleted successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+
+                StatusMessage = "Snapshots deleted successfully";
+            }
+            catch (Exception ex)
+            {
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show($"Failed to delete snapshots:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                });
+                StatusMessage = "Failed to delete snapshots";
             }
             finally
             {
