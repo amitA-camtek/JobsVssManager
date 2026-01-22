@@ -9,7 +9,7 @@ namespace JobsVssManager
 {
     public partial class App : Application
     {
-        protected override void OnStartup(StartupEventArgs e)
+        protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);  
 
@@ -28,10 +28,14 @@ namespace JobsVssManager
             var vm = new MainViewModel(
                 provider, 
                 config?.JobsRoot ?? "C:\\job", 
-                config?.Volume ?? "C:\\");
+                config?.Volume ?? "C:\\",
+                config?.SnapshotExpirationHours ?? 24);
             
             var window = new MainWindow { DataContext = vm };
             window.Show();
+
+            // Check for pending restore operations after window is shown
+            await vm.CheckPendingRestoreAsync();
         }
     }
 
@@ -39,5 +43,6 @@ namespace JobsVssManager
     {
         public string? JobsRoot { get; set; }
         public string? Volume { get; set; }
+        public int? SnapshotExpirationHours { get; set; }
     }
 }

@@ -11,16 +11,23 @@ namespace JobsVssManager.Services
     {
         private readonly IVssProvider _provider;
         private readonly string _volume;
+        private readonly int _expirationHours;
 
-        public VssSnapshotService(IVssProvider provider, string volume)
+        public VssSnapshotService(IVssProvider provider, string volume, int expirationHours = 24)
         {
             _provider = provider;
             _volume = volume;
+            _expirationHours = expirationHours;
         }
 
-        public Task<SnapshotModel> CreateSnapshotAsync(string description)
+        public async Task<SnapshotModel> CreateSnapshotAsync(string description)
         {
-            return _provider.CreateSnapshotAsync(_volume, description);
+            var snapshot = await _provider.CreateSnapshotAsync(_volume, description);
+            
+            // Set expiration date
+            snapshot.ExpiresAt = DateTime.Now.AddHours(_expirationHours);
+            
+            return snapshot;
         }
 
         public Task<IEnumerable<SnapshotModel>> ListSnapshotsAsync()
@@ -48,7 +55,7 @@ namespace JobsVssManager.Services
             var relativePath = originalFolderPath?.Substring(volumeRoot?.Length ?? 0) ?? "";
             
             // Ensure snapshot root ends with backslash
-            if (!snapshotRoot.EndsWith("\\"))
+            if (!snapshotRoot.EndsWith("\\", StringComparison.Ordinal))
                 snapshotRoot += "\\";
             
             // Combine without using Path.Combine (it doesn't work well with VSS UNC paths)
@@ -199,32 +206,14 @@ namespace JobsVssManager.Services
             }
         }
 
-        /// <summary>
-        /// Check if file has been modified by comparing size and last write time
-        /// </summary>
         private bool IsFileModified(string snapshotFile, string targetFile)
         {
-            try
-            {
-                var snapshotInfo = new FileInfo(snapshotFile);
-                var targetInfo = new FileInfo(targetFile);
+            var snapshotInfo = new FileInfo(snapshotFile);
+            var targetInfo = new FileInfo(targetFile);
 
-                // Compare file size (fast check)
-                if (snapshotInfo.Length != targetInfo.Length)
-                    return true;
-
-                // Compare last write time (with 2 second tolerance for filesystem precision)
-                var timeDiff = Math.Abs((snapshotInfo.LastWriteTime - targetInfo.LastWriteTime).TotalSeconds);
-                if (timeDiff > 2)
-                    return true;
-
-                return false;
-            }
-            catch
-            {
-                // If we can't compare, assume modified
-                return true;
-            }
+            // Compare size and last write time
+            return snapshotInfo.Length != targetInfo.Length ||
+                   snapshotInfo.LastWriteTime != targetInfo.LastWriteTime;
         }
     }
 }
