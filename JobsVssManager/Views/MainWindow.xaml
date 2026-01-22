@@ -14,12 +14,10 @@
         <ToolBar Grid.Row="0" Padding="5">
             <Button Content="Create Snapshot" Command="{Binding CreateSnapshotCommand}" 
                     IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>
-            <Button Content="Delete Snapshots" Command="{Binding DeleteSnapshotCommand}" 
+            <Button Content="Delete Snapshots" Command="{Binding SaveSnapshotCommand}" 
                     IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>
             <Separator/>
             <Button Content="Restore" Command="{Binding RestoreCommand}" 
-                    IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>
-            <Button Content="Redo" Command="{Binding RedoCommand}" 
                     IsEnabled="{Binding IsNotBusy}" Padding="10,5" Margin="5,0"/>
         </ToolBar>
 

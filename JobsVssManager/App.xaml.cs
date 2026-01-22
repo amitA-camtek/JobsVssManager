@@ -22,19 +22,13 @@ namespace JobsVssManager
             var config = JsonSerializer.Deserialize<Config>(
                 File.ReadAllText("appsettings.json"), options);
 
-            // Select provider based on configuration
-            IVssProvider provider = config?.VssMode?.ToLower() switch
-            {
-                "gitlfs" => new GitLfsVssProvider(
-                    snapshotsRootPath: config.GitLfsRepository ?? @"C:\job\AmitTest1 - Copy"),
-                "vssadmin" => new VssAdminProvider(),
-                _ => new VssAdminProvider()
-            };
+            // Use VssAdminProvider
+            IVssProvider provider = new VssAdminProvider();
             
             var vm = new MainViewModel(
                 provider, 
                 config?.JobsRoot ?? "C:\\job", 
-                config?.JobsRoot ?? "C:\\job");
+                config?.Volume ?? "C:\\");
             
             var window = new MainWindow { DataContext = vm };
             window.Show();
@@ -44,11 +38,6 @@ namespace JobsVssManager
     public class Config
     {
         public string? JobsRoot { get; set; }
-        public string? VssMode { get; set; }
-        
-        // Git LFS settings
-        public string? GitLfsRepository { get; set; }
-        public string? GitLfsRemote { get; set; }
-        public bool GitLfsAutoPush { get; set; }
+        public string? Volume { get; set; }
     }
 }

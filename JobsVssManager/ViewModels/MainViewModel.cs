@@ -68,9 +68,8 @@ namespace JobsVssManager.ViewModels
         }
 
         public ICommand CreateSnapshotCommand { get; }
-        public ICommand DeleteSnapshotCommand { get; }
+        public ICommand SaveSnapshotCommand { get; }
         public ICommand RestoreCommand { get; }
-        public ICommand RedoCommand { get; }
 
         public MainViewModel(IVssProvider vssProvider, string jobsRoot, string volume)
         {
@@ -85,9 +84,8 @@ namespace JobsVssManager.ViewModels
             _ = LoadSnapshotsAsync();
 
             CreateSnapshotCommand = new RelayCommand(async _ => await CreateSnapshotAsync(), _ => !IsBusy);
-            DeleteSnapshotCommand = new RelayCommand(async _ => await DeleteSnapshotAsync(), _ => Snapshots.Count > 0 && !IsBusy);
+            SaveSnapshotCommand = new RelayCommand(async _ => await DeleteSnapshotAsync(), _ => Snapshots.Count > 0 && !IsBusy);
             RestoreCommand = new RelayCommand(async _ => await RestoreAsync(), _ => SelectedJob != null && SelectedSnapshot != null && !IsBusy);
-            RedoCommand = new RelayCommand(async _ => await RedoAsync(), _ => SelectedJob != null && Snapshots.Count > 0 && !IsBusy);
         }
 
         private async Task LoadSnapshotsAsync()
@@ -292,18 +290,6 @@ namespace JobsVssManager.ViewModels
             {
                 IsBusy = false;
             }
-        }
-
-        private async Task RedoAsync()
-        {
-            // Placeholder for redo functionality
-            await Task.Run(() =>
-            {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MessageBox.Show("Redo functionality not yet implemented.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
-                });
-            });
         }
 
         private string FormatDuration(TimeSpan duration)
