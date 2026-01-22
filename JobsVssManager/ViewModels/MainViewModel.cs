@@ -16,7 +16,6 @@ namespace JobsVssManager.ViewModels
     {
         private readonly string _jobsRoot;
         private readonly VssSnapshotService _snapshotService;
-        private readonly JobsWatcherService _jobsWatcher;
         private JobViewModel? _selectedJob;
         private SnapshotModel? _selectedSnapshot;
         private bool _isBusy;
@@ -79,7 +78,6 @@ namespace JobsVssManager.ViewModels
             Directory.CreateDirectory(_jobsRoot);
 
             _snapshotService = new VssSnapshotService(vssProvider, volume);
-            _jobsWatcher = new JobsWatcherService(_jobsRoot, OnJobFolderCreated);
 
             foreach (var dir in Directory.GetDirectories(_jobsRoot))
                 Jobs.Add(new JobViewModel(new JobModel { Name = Path.GetFileName(dir), Path = dir }));
